@@ -1,49 +1,236 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Schlacken App</title>
-  <link rel="manifest" href="manifest.json">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pfannenofen Schlacken Assistent</title>
+
+<style>
+body{font-family:Arial;background:#0f172a;color:white;margin:0;padding:20px}
+.card{background:#111827;border-radius:14px;padding:18px;margin-bottom:16px;border:1px solid #374151}
+h1,h2{margin-top:0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+input,select{width:100%;padding:10px;border-radius:8px;border:1px solid #374151;background:#020617;color:white}
+.result{font-size:22px;font-weight:bold;color:#86efac;margin-top:4px}
+.small{color:#9ca3af;font-size:13px}
+img{max-width:100%;border-radius:10px;border:1px solid #374151;margin-top:10px}
+</style>
 </head>
+
 <body>
-  <h2>Schlacken Rechner</h2>
 
-  CaO: <input id="cao"><br><br>
-  SiO2: <input id="sio2"><br><br>
-  Al2O3: <input id="al2o3"><br><br>
+<div class="card">
+<h1>Pfannenofen Schlacken Assistent</h1>
+<p class="small">B2 Ziel: 1.8 Stückverzinker | 1.6 Normal | +500 kg Schlackenmittlauf</p>
+</div>
 
-  Foto: <input type="file" id="foto"><br><br>
+<div class="card">
+<h2>Konverter Zugaben</h2>
+<div class="grid">
 
-  <button onclick="speichern()">Speichern</button>
+<div>
+<label>Sulfex (kg)</label>
+<input id="sulfex" type="number" value="0" oninput="calcConverter()">
+</div>
 
-  <script>
-    function speichern(){
-      localStorage.setItem("cao", document.getElementById("cao").value);
-      localStorage.setItem("sio2", document.getElementById("sio2").value);
-      localStorage.setItem("al2o3", document.getElementById("al2o3").value);
+<div>
+<label>ADL Kalk (kg)</label>
+<input id="adl" type="number" value="0" oninput="calcConverter()">
+</div>
 
-      let file = document.getElementById("foto").files[0];
-      if(file){
-        let reader = new FileReader();
-        reader.onload = function(){
-          localStorage.setItem("foto", reader.result);
-        }
-        reader.readAsDataURL(file);
-      }
-    }
+<div>
+<label>D75 (kg)</label>
+<input id="d75" type="number" value="0" oninput="calcConverter()">
+</div>
 
-    function laden(){
-      document.getElementById("cao").value = localStorage.getItem("cao") || "";
-      document.getElementById("sio2").value = localStorage.getItem("sio2") || "";
-      document.getElementById("al2o3").value = localStorage.getItem("al2o3") || "";
-    }
+<div>
+<label>TLS35 (kg)</label>
+<input id="tls" type="number" value="0" oninput="calcConverter()">
+</div>
 
-    window.onload = laden;
+</div>
 
-    if("serviceWorker" in navigator){
-      navigator.serviceWorker.register("sw.js");
-    }
-  </script>
+<p class="small">Pfannenofen Empfehlung</p>
+
+CAS-35
+<div id="cas_conv" class="result">0 kg</div>
+
+Kalk
+<div id="kalk_conv" class="result">0 kg</div>
+
+</div>
+
+<div class="card">
+<h2>Schlackenprobe Foto</h2>
+<input type="file" accept="image/*" onchange="showPhoto(event)">
+<img id="photo" style="display:none;">
+</div>
+
+<div class="card">
+<h2>Schlackenprobe Werte</h2>
+
+<div class="grid">
+
+<div>
+<label>CaO %</label>
+<input id="cao" type="number" value="45" oninput="calcSlag()">
+</div>
+
+<div>
+<label>SiO2 %</label>
+<input id="sio2" type="number" value="25" oninput="calcSlag()">
+</div>
+
+<div>
+<label>Al2O3 %</label>
+<input id="al2o3" type="number" value="8" oninput="calcSlag()">
+</div>
+
+<div>
+<label>Qualität</label>
+<select id="quality" onchange="calcSlag()">
+<option value="normal">Normal</option>
+<option value="stueck">Stückverzinker</option>
+</select>
+</div>
+
+</div>
+
+<p>B2 Basizität</p>
+<div id="b2" class="result">0</div>
+
+<div id="slagstatus" class="small"></div>
+
+<p class="small">Empfehlung Schlackenbildner</p>
+
+CAS-35
+<div id="cas_slag" class="result">0 kg</div>
+
+Kalk
+<div id="kalk_slag" class="result">0 kg</div>
+
+</div>
+
+<script>
+
+const stoffe={
+sulfex:{cao:0.70,al:0.15},
+adl:{cao:0.70,al:0},
+d75:{cao:0.65,al:0},
+tls:{cao:0.60,al:0.10},
+cas:{cao:0.30,al:0.50}
+}
+
+function calcConverter(){
+
+const sulfex=parseFloat(document.getElementById("sulfex").value)||0
+const adl=parseFloat(document.getElementById("adl").value)||0
+const d75=parseFloat(document.getElementById("d75").value)||0
+const tls=parseFloat(document.getElementById("tls").value)||0
+
+let cao=
+sulfex*stoffe.sulfex.cao+
+adl*stoffe.adl.cao+
+d75*stoffe.d75.cao+
+tls*stoffe.tls.cao
+
+let al=
+sulfex*stoffe.sulfex.al+
+tls*stoffe.tls.al
+
+const targetAl=325
+
+let cas=(targetAl-al)/stoffe.cas.al
+if(cas<0)cas=0
+
+let caoCas=cas*stoffe.cas.cao
+
+const targetCao=1600
+
+let kalk=(targetCao-cao-caoCas)
+if(kalk<0)kalk=0
+
+document.getElementById("cas_conv").innerText=Math.round(cas)+" kg"
+document.getElementById("kalk_conv").innerText=Math.round(kalk)+" kg"
+
+}
+
+function calcSlag(){
+
+const cao=parseFloat(document.getElementById("cao").value)||0
+const sio2=parseFloat(document.getElementById("sio2").value)||1
+const al=parseFloat(document.getElementById("al2o3").value)||0
+const quality=document.getElementById("quality").value
+
+let b2=cao/sio2
+
+document.getElementById("b2").innerText=b2.toFixed(2)
+
+let target=quality==="stueck"?1.8:1.6
+
+let text=""
+let cas=0
+let kalk=0
+
+if(b2<target){
+
+text="Schlacke zu sauer → nachfahren nötig"
+
+let neededCaO=(target*sio2)-cao
+
+let neededAl=10-al
+
+if(neededAl<0)neededAl=0
+
+cas=neededAl/stoffe.cas.al
+
+let caoCas=cas*stoffe.cas.cao
+
+let rest=neededCaO-caoCas
+if(rest<0)rest=0
+
+kalk=rest/0.70*100
+
+}else{
+
+text="Schlacke im Zielbereich"
+
+}
+
+document.getElementById("slagstatus").innerText=text
+
+document.getElementById("cas_slag").innerText=Math.round(cas)+" kg"
+document.getElementById("kalk_slag").innerText=Math.round(kalk)+" kg"
+
+}
+
+function showPhoto(e){
+
+const file=e.target.files[0]
+if(!file)return
+
+const reader=new FileReader()
+
+reader.onload=function(ev){
+
+const img=document.getElementById("photo")
+img.src=ev.target.result
+img.style.display="block"
+
+}
+
+reader.readAsDataURL(file)
+
+}
+
+window.onload=function(){
+
+calcConverter()
+calcSlag()
+
+}
+
+</script>
+
 </body>
 </html>
