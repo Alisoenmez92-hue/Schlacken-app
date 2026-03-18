@@ -1,8 +1,0 @@
-{
-  "name": "Schlacken App",
-  "short_name": "Schlacke",
-  "start_url": "index.html",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#000000"
-}
