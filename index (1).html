@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Schlacken App</title>
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+  <h2>Schlacken Rechner</h2>
+
+  CaO: <input id="cao"><br><br>
+  SiO2: <input id="sio2"><br><br>
+  Al2O3: <input id="al2o3"><br><br>
+
+  Foto: <input type="file" id="foto"><br><br>
+
+  <button onclick="speichern()">Speichern</button>
+
+  <script>
+    function speichern(){
+      localStorage.setItem("cao", document.getElementById("cao").value);
+      localStorage.setItem("sio2", document.getElementById("sio2").value);
+      localStorage.setItem("al2o3", document.getElementById("al2o3").value);
+
+      let file = document.getElementById("foto").files[0];
+      if(file){
+        let reader = new FileReader();
+        reader.onload = function(){
+          localStorage.setItem("foto", reader.result);
+        }
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function laden(){
+      document.getElementById("cao").value = localStorage.getItem("cao") || "";
+      document.getElementById("sio2").value = localStorage.getItem("sio2") || "";
+      document.getElementById("al2o3").value = localStorage.getItem("al2o3") || "";
+    }
+
+    window.onload = laden;
+
+    if("serviceWorker" in navigator){
+      navigator.serviceWorker.register("sw.js");
+    }
+  </script>
+</body>
+</html>
